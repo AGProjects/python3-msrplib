@@ -6,7 +6,7 @@ from base64 import b64encode, b64decode
 import random
 
 def get_random_data(length):
-    return ''.join(chr(random.randint(0, 255)) for x in xrange(length))
+    return ''.join(chr(random.randint(0, 255)) for x in range(length))
 
 class LoginFailed(Exception):
     pass
@@ -28,7 +28,7 @@ def calc_hash(**parameters):
     return md5(hash_text).hexdigest()
 
 def calc_responses(**parameters):
-    if parameters.has_key("ha1"):
+    if "ha1" in parameters:
         ha1 = parameters.pop("ha1")
     else:
         ha1 = calc_ha1(**parameters)
@@ -80,7 +80,7 @@ class AuthChallenger(object):
             nonce = parameters["nonce"]
             opaque = parameters["opaque"]
             response = parameters["response"]
-        except IndexError, e:
+        except IndexError as e:
             raise LoginFailed("Parameter not present: %s", e.message)
         try:
             expected_response, rspauth = calc_responses(ha1 = ha1, **parameters)

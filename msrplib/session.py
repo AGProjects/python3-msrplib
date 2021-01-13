@@ -120,7 +120,7 @@ class MSRPSession(object):
                 chunk = self.msrp.make_send_request()
                 chunk.add_header(protocol.MSRPHeader('Keep-Alive', 'yes'))
                 self.deliver_chunk(chunk)
-            except MSRPTransactionError, e:
+            except MSRPTransactionError as e:
                 if e.code == 408:
                     self.msrp.loseConnection(wait=False)
                     self.set_state('CLOSING')
@@ -237,7 +237,7 @@ class MSRPSession(object):
                 if item is None:
                     break
                 self._write_chunk(item.chunk, item.response_callback)
-        except ConnectionClosedErrors + (proc.LinkedExited, proc.ProcExit), e:
+        except ConnectionClosedErrors + (proc.LinkedExited, proc.ProcExit) as e:
             self.logger.debug('writer: exiting because of %r' % e)
         except:
             self.logger.exception('writer: captured unhandled exception:')

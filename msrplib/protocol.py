@@ -46,7 +46,7 @@ class SimpleHeaderType(object):
 
 
 class UTF8HeaderType(object):
-    data_type = unicode
+    data_type = str
 
     @staticmethod
     def decode(encoded):
@@ -158,7 +158,7 @@ class ContentDispositionHeaderType(object):
     @staticmethod
     def encode(decoded):
         disposition, parameters = decoded
-        return '; '.join([disposition] + ['{}="{}"'.format(name, value) for name, value in parameters.iteritems()])
+        return '; '.join([disposition] + ['{}="{}"'.format(name, value) for name, value in parameters.items()])
 
 
 class ParameterListHeaderType(object):
@@ -172,7 +172,7 @@ class ParameterListHeaderType(object):
 
     @staticmethod
     def encode(decoded):
-        return ', '.join('{}="{}"'.format(name, value) for name, value in decoded.iteritems())
+        return ', '.join('{}="{}"'.format(name, value) for name, value in decoded.items())
 
 
 class DigestHeaderType(ParameterListHeaderType):
@@ -214,9 +214,7 @@ class MSRPHeaderMeta(type):
             return super(MSRPHeaderMeta, cls).__call__(name, value)
 
 
-class MSRPHeader(object):
-    __metaclass__ = MSRPHeaderMeta
-
+class MSRPHeader(object, metaclass=MSRPHeaderMeta):
     name = None
     type = SimpleHeaderType
 
@@ -398,7 +396,7 @@ class HeaderOrderMapping(dict):
     }
 
     def __init__(self):
-        super(HeaderOrderMapping, self).__init__({name: level for level, name_list in self.__levels__.items() for name in name_list})
+        super(HeaderOrderMapping, self).__init__({name: level for level, name_list in list(self.__levels__.items()) for name in name_list})
 
     def __missing__(self, key):
         return 3 if key.startswith('Content-') else 2
@@ -531,7 +529,7 @@ class MSRPData(object):
             raise HeaderParsingError('To-Path', 'header is missing')
         if 'From-Path' not in self.headers:
             raise HeaderParsingError('From-Path', 'header is missing')
-        for header in self.headers.itervalues():
+        for header in self.headers.values():
             _ = header.decoded
 
     @property
@@ -618,7 +616,7 @@ class MSRPProtocol(LineReceiver):
                 continue_flags = [c+'\r\n' for c in '$#+']
                 self.term_buf = ''
                 self.term_re = re.compile("^(.*)%s([$#+])\r\n(.*)$" % re.escape(terminator), re.DOTALL)
-                self.term_substrings = [terminator[:i] for i in xrange(1, len(terminator)+1)] + [terminator+cont[:i] for cont in continue_flags for i in xrange(1, len(cont))]
+                self.term_substrings = [terminator[:i] for i in range(1, len(terminator)+1)] + [terminator+cont[:i] for cont in continue_flags for i in range(1, len(cont))]
                 self.term_substrings.reverse()
 
                 self.data.chunk_header += self.delimiter
@@ -758,7 +756,7 @@ class URI(ConnectInfo):
         user_part = '{}@'.format(self.user) if self.user else ''
         port_part = ':{}'.format(self.port) if self.port else ''
         session_part = '/{}'.format(self.session_id) if self.session_id else ''
-        parameter_parts = [';{}={}'.format(name, value) for name, value in self.parameters.iteritems()] if self.parameters else []
+        parameter_parts = [';{}={}'.format(name, value) for name, value in self.parameters.items()] if self.parameters else []
         return ''.join([self.scheme, '://', user_part, self.host, port_part, session_part, ';', self.transport] + parameter_parts)
 
     def __eq__(self, other):

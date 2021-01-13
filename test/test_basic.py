@@ -26,7 +26,7 @@ class NoisySRVConnector(SRVConnector):
 
     def pickServer(self):
         host, port = SRVConnector.pickServer(self)
-        print 'Resolved _%s._%s.%s --> %s:%s' % (self.service, self.protocol, self.domain, host, port)
+        print('Resolved _%s._%s.%s --> %s:%s' % (self.service, self.protocol, self.domain, host, port))
         return host, port
 
 ConnectBase.SRVConnectorClass = NoisySRVConnector
@@ -91,7 +91,7 @@ class TestBase(unittest.TestCase):
         return client, server
 
     def setUp(self):
-        print '\n%s.%s' % (self.__class__.__name__, self._testMethodName)
+        print('\n%s.%s' % (self.__class__.__name__, self._testMethodName))
         self.timer = api.exc_after(self.PER_TEST_TIMEOUT, api.TimeoutError('per test timeout expired'))
 
     def tearDown(self):
@@ -107,7 +107,7 @@ class TestBase(unittest.TestCase):
             self.assertEqual(chunk1.data, chunk2.data)
             self.assertEqual(chunk1.contflag, chunk2.contflag)
         except Exception:
-            print 'Error while comparing %r and %r' % (chunk1, chunk2)
+            print('Error while comparing %r and %r' % (chunk1, chunk2))
             raise
 
     def make_hello(self, msrptransport, success_report=None, failure_report=None):
@@ -180,7 +180,7 @@ class MSRPSessionTest(TestBase):
     def assertRaisesCode(self, exception, code, func, *args, **kwargs):
         try:
             func(*args, **kwargs)
-        except exception, ex:
+        except exception as ex:
             self.assertEqual(ex.code, code)
         else:
             raise AssertionError('%r didnt raise %s' % (func, exception))
@@ -262,7 +262,7 @@ class ServerTest(TestBase):
         server_uri_1 = server.prepare(self.get_server_uri())
         server_uri_2 = server.prepare(self.get_server_uri())
         assert len(server.ports)==1, server.ports
-        assert len(server.ports.values()[0])==1, server.ports
+        assert len(list(server.ports.values())[0])==1, server.ports
 
         connector = self.get_connector()
         client1_full_local_path = connector.prepare()
@@ -324,10 +324,10 @@ for relay in relays:
 
 def get_config_name(config):
     result = []
-    for name, relay in config.items():
+    for name, relay in list(config.items()):
         if relay is not None:
             x = name
-            print name, relay.host
+            print(name, relay.host)
             if relay.host is None:
                 x += '_srv'
             result.append(x)
@@ -340,18 +340,18 @@ def make_tests_for_other_configurations(TestClass):
         klass_name = klass + '_' + config_name
         while klass_name in globals():
             klass_name += '_x'
-        new_class = new.classobj(klass_name, (TestClass, ), copy(config))
-        print klass_name
+        new_class = type(klass_name, (TestClass, ), copy(config))
+        print(klass_name)
         globals()[klass_name] = new_class
 
 if relays:
-    print 'Relays: '
+    print('Relays: ')
     pprint.pprint(relays)
-    print
+    print()
 if configs:
-    print 'Configs: '
+    print('Configs: ')
     pprint.pprint(configs)
-    print
+    print()
 
 make_tests_for_other_configurations(MSRPTransportTest)
 make_tests_for_other_configurations(MSRPSessionTest)

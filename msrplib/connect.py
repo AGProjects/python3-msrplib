@@ -40,7 +40,7 @@ Note that, acceptors and connectors are one-use only. MSRPServer, on the contrar
 can be used multiple times.
 """
 
-from __future__ import with_statement
+
 
 import random
 
@@ -498,7 +498,7 @@ class MSRPServer(ConnectBase):
 
     def stopListening(self):
         """Close all the sockets that MSRPServer is listening on"""
-        for interface, rest in self.ports.iteritems():
+        for interface, rest in self.ports.items():
             for port, (use_tls, listening_port) in rest:
                 listening_port.stopListening()
         self.ports = {}

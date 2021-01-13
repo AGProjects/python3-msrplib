@@ -46,7 +46,7 @@ class MSRPNoSuchSessionError(MSRPTransactionError):
     comment = 'No such session'
 
 
-data_start, data_end, data_write, data_final_write = range(4)
+data_start, data_end, data_write, data_final_write = list(range(4))
 
 
 def make_report(chunk, code, comment):
@@ -244,7 +244,7 @@ class MSRPTransport(GreenTransportBase):
         """Generate and write the response, lose the connection in case of error"""
         try:
             response = make_response(chunk, code, comment)
-        except ChunkParseError, ex:
+        except ChunkParseError as ex:
             log.error('Failed to generate a response: %s' % ex)
             self.loseConnection(wait=False)
             raise
