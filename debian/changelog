@@ -1,3 +1,9 @@
+python-msrplib (0.21.0) unstable; urgency=medium
+
+  * Migrate to version 3
+
+ -- Adrian Georgescu <ag@ag-projects.com>  Wed, 13 Jan 2021 14:37:13 +0100
+
 python-msrplib (0.20.0) unstable; urgency=medium
 
   * Updated TLS certificates

@@ -4,7 +4,7 @@ from distutils.core import setup
 from msrplib import __version__
 
 setup(
-    name='python-msrplib',
+    name='python3-msrplib',
     version=__version__,
     author='AG Projects',
     author_email='support@ag-projects.com',
