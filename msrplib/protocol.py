@@ -610,6 +610,7 @@ class MSRPProtocol(LineReceiver):
         self.msrp_transport._got_transport(self.transport)
 
     def lineReceived(self, line):
+        line = line.decode('utf-8')
         if self.data:
             if len(line) == 0:
                 terminator = '\r\n-------' + self.data.transaction_id
@@ -619,19 +620,19 @@ class MSRPProtocol(LineReceiver):
                 self.term_substrings = [terminator[:i] for i in range(1, len(terminator)+1)] + [terminator+cont[:i] for cont in continue_flags for i in range(1, len(cont))]
                 self.term_substrings.reverse()
 
-                self.data.chunk_header += self.delimiter
+                self.data.chunk_header += self.delimiter.decode('utf-8')
                 self.msrp_transport._data_start(self.data)
                 self.setRawMode()
             else:
                 match = self.term_re.match(line)
                 if match:
                     continuation = match.group(1)
-                    self.data.chunk_footer = line + self.delimiter
+                    self.data.chunk_footer = line + self.delimiter.decode('utf-8')
                     self.msrp_transport._data_start(self.data)
                     self.msrp_transport._data_end(continuation)
                     self._reset()
                 else:
-                    self.data.chunk_header += line + self.delimiter
+                    self.data.chunk_header += line + self.delimiter.decode('utf-8')
                     self.line_count += 1
                     if self.line_count > self.MAX_LINES:
                         self.msrp_transport.logger.received_illegal_data(self.data.chunk_header, self.msrp_transport)
@@ -650,16 +651,16 @@ class MSRPProtocol(LineReceiver):
                 transaction_id, method, code, comment = match.groups()
                 code = int(code) if code is not None else None
                 self.data = MSRPData(transaction_id, method, code, comment)
-                self.data.chunk_header = line + self.delimiter
+                self.data.chunk_header = line + self.delimiter.decode('utf-8')
                 self.term_re = re.compile(r'^-------{}([$#+])$'.format(re.escape(transaction_id)))
             else:
-                self.msrp_transport.logger.received_illegal_data(line + self.delimiter, self.msrp_transport)
+                self.msrp_transport.logger.received_illegal_data(line + self.delimiter.decode('utf-8'), self.msrp_transport)
 
     def lineLengthExceeded(self, line):
         self._reset()
 
     def rawDataReceived(self, data):
-        data = self.term_buf + data
+        data = self.term_buf + data.decode('utf-8')
         match = self.term_re.match(data)
         if match:  # we got the last data for this message
             contents, continuation, extra = match.groups()
@@ -668,7 +669,7 @@ class MSRPProtocol(LineReceiver):
             self.data.chunk_footer = '\r\n-------{}{}\r\n'.format(self.data.transaction_id, continuation)
             self.msrp_transport._data_end(continuation)
             self._reset()
-            self.setLineMode(extra)
+            self.setLineMode(extra.encode('utf-8'))
         else:
             for term in self.term_substrings:
                 if data.endswith(term):
