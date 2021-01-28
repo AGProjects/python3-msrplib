@@ -20,6 +20,7 @@ from msrplib.session import GreenMSRPSession, MSRPSessionError, LocalResponse
 from msrplib.trafficlog import Logger
 from msrplib.transport import MSRPTransport
 
+X509Credentials.verify_peer=False
 
 class NoisySRVConnector(SRVConnector):
 
@@ -260,6 +261,7 @@ class ServerTest(TestBase):
         server = self.get_server()
         server_uri_1 = server.prepare(self.get_server_uri())
         server_uri_2 = server.prepare(self.get_server_uri())
+        suri:gnutls.interfaces.twisted.X509Credentials = self.get_server_uri()
         assert len(server.ports)==1, server.ports
         assert len(list(server.ports.values())[0])==1, server.ports
 
