@@ -1,3 +1,6 @@
+- Regenerate the certificate used for test_basic.py script as is using an
+  obsolete algorithm
+ 
 - Capture DNS lookups related to MSRP relay reservation
 - Allow multiple relays to be specified (for fallback) when making an MSRP
    connection.
