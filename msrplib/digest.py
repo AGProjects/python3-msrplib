@@ -13,19 +13,19 @@ class LoginFailed(Exception):
 
 def calc_ha1(**parameters):
     ha1_text = "%(username)s:%(realm)s:%(password)s" % parameters
-    return md5(ha1_text).hexdigest()
+    return md5(ha1_text.encode('utf-8')).hexdigest()
 
 def calc_ha2_response(**parameters):
     ha2_text = "%(method)s:%(uri)s" % parameters
-    return md5(ha2_text).hexdigest()
+    return md5(ha2_text.encode('utf-8')).hexdigest()
 
 def calc_ha2_rspauth(**parameters):
     ha2_text = ":%(uri)s" % parameters
-    return md5(ha2_text).hexdigest()
+    return md5(ha2_text.encode('utf-8')).hexdigest()
 
 def calc_hash(**parameters):
     hash_text = "%(ha1)s:%(nonce)s:%(nc)s:%(cnonce)s:auth:%(ha2)s" % parameters
-    return md5(hash_text).hexdigest()
+    return md5(hash_text.encode('utf-8')).hexdigest()
 
 def calc_responses(**parameters):
     if "ha1" in parameters:
@@ -40,7 +40,7 @@ def calc_responses(**parameters):
 
 def process_www_authenticate(username, password, method, uri, **parameters):
     nc = "00000001"
-    cnonce = get_random_data(16).encode("hex")
+    cnonce = get_random_data(16).encode().hex()
     parameters["username"] = username
     parameters["password"] = password
     parameters["method"] = method
@@ -69,7 +69,7 @@ class AuthChallenger(object):
         www_authenticate["qop"] = "auth"
         nonce = get_random_data(16) + "%.3f:%s" % (time(), peer_ip)
         www_authenticate["nonce"] = b64encode(nonce)
-        opaque = md5(nonce + self.key)
+        opaque = md5((nonce + self.key).encode())
         www_authenticate["opaque"] = opaque.hexdigest()
         return www_authenticate
 

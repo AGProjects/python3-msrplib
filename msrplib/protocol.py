@@ -729,7 +729,7 @@ class ConnectInfo(object):
 
     def __init__(self, host=None, use_tls=None, port=None, credentials=None):
         if host is not None:
-            self.host = host
+            self.host = host.decode() if isinstance(host, bytes) else host
         if use_tls is not None:
             self.use_tls = use_tls
         if port is not None:
