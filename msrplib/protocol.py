@@ -462,7 +462,7 @@ class HeaderMapping(dict):
 class MSRPData(object):
     __immutable__ = frozenset({'method', 'code', 'comment', 'headers'})  # Immutable attributes (cannot be overwritten)
 
-    def __init__(self, transaction_id, method=None, code=None, comment=None, headers=None, data='', contflag='$'):
+    def __init__(self, transaction_id, method=None, code=None, comment=None, headers=None, data=b'', contflag='$'):
         if method is None and code is None:
             raise ValueError('either method or code must be specified')
         elif method is not None and code is not None:
@@ -583,7 +583,10 @@ class MSRPData(object):
         return '\r\n-------{}{}\r\n'.format(self.transaction_id, self.contflag)
 
     def encode(self):
-        return self.encoded_header + self.data + self.encoded_footer
+        encoded_header = self.encoded_header if isinstance(self.encoded_header, bytes) else self.encoded_header.encode()
+        data = self.data if isinstance(self.data, bytes) else self.data.encode()
+        encoded_footer = self.encoded_footer if isinstance(self.encoded_footer, bytes) else self.encoded_footer.encode()
+        return encoded_header + data + encoded_footer
 
 
 # noinspection PyProtectedMember
@@ -596,7 +599,7 @@ class MSRPProtocol(LineReceiver):
 
     def __init__(self, msrp_transport):
         self.msrp_transport = msrp_transport
-        self.term_buf = ''
+        self.term_buf = b''
         self.term_re = None
         self.term_substrings = []
         self.data = None
@@ -609,75 +612,110 @@ class MSRPProtocol(LineReceiver):
     def connectionMade(self):
         self.msrp_transport._got_transport(self.transport)
 
+    def lineLengthExceeded(self, line):
+        self._reset()
+
     def lineReceived(self, line):
-        line = line.decode('utf-8')
+        
+        try:
+            decoded_line = line.decode('utf-8')
+        except UnicodeDecodeError:
+            decoded_line = None
+
         if self.data:
             if len(line) == 0:
+#                The end-line that terminates the request MUST be composed of seven
+#                "-" (minus sign) characters, the transaction ID as used in the start
+#                line, and a flag character.  If a body is present, the end-line MUST
+#                be preceded by a CRLF that is not part of the body.  If the chunk
+#                represents the data that forms the end of the complete message, the
+#                flag value MUST be a "$".  If the sender is aborting an incomplete
+#                message, and intends to send no further chunks in that message, the
+#                flag MUST be a "#".  Otherwise, the flag MUST be a "+".
+#
+#                If the request contains a body, the sender MUST ensure that the end-
+#                line (seven hyphens, the transaction identifier, and a continuation
+#                flag) is not present in the body.  If the end-line is present in the
+#                body, the sender MUST choose a new transaction identifier that is not
+#                present in the body, and add a CRLF if needed, and the end-line,
+#                including the "$", "#", or "+" character.
+   
                 terminator = '\r\n-------' + self.data.transaction_id
                 continue_flags = [c+'\r\n' for c in '$#+']
-                self.term_buf = ''
+                self.term_buf = b''
                 self.term_re = re.compile("^(.*)%s([$#+])\r\n(.*)$" % re.escape(terminator), re.DOTALL)
                 self.term_substrings = [terminator[:i] for i in range(1, len(terminator)+1)] + [terminator+cont[:i] for cont in continue_flags for i in range(1, len(cont))]
                 self.term_substrings.reverse()
 
-                self.data.chunk_header += self.delimiter.decode('utf-8')
+                self.data.chunk_header += self.delimiter
                 self.msrp_transport._data_start(self.data)
                 self.setRawMode()
             else:
-                match = self.term_re.match(line)
+                match = self.term_re.match(decoded_line) if decoded_line else None
                 if match:
                     continuation = match.group(1)
-                    self.data.chunk_footer = line + self.delimiter.decode('utf-8')
+                    self.data.chunk_footer = line + self.delimiter
                     self.msrp_transport._data_start(self.data)
-                    self.msrp_transport._data_end(continuation)
+                    self.msrp_transport._data_end(continuation.encode())
                     self._reset()
                 else:
-                    self.data.chunk_header += line + self.delimiter.decode('utf-8')
+                    self.data.chunk_header += line + self.delimiter
                     self.line_count += 1
                     if self.line_count > self.MAX_LINES:
                         self.msrp_transport.logger.received_illegal_data(self.data.chunk_header, self.msrp_transport)
                         self._reset()
                         return
                     try:
-                        name, value = line.split(': ', 1)
-                    except ValueError:
+                        name, value = decoded_line.split(': ', 1)
+                    except (ValueError, AttributeError) as e:
                         return  # let this pass silently, we'll just not read this line. TODO: review this (ignore or drop connection?)
                     else:
+                        #print('MSRP Header: %s=%s' % (name, value))
                         self.data.add_header(MSRPHeader(name, value))
         else:
             # this is a new message. TODO: drop connection if first line cannot be parsed?
-            match = self.first_line_re.match(line)
+            match = self.first_line_re.match(decoded_line) if decoded_line else None
             if match:
                 transaction_id, method, code, comment = match.groups()
                 code = int(code) if code is not None else None
+                #print('MSRP Data start %s %s' % (method, transaction_id))
                 self.data = MSRPData(transaction_id, method, code, comment)
-                self.data.chunk_header = line + self.delimiter.decode('utf-8')
+                self.data.chunk_header = line + self.delimiter
                 self.term_re = re.compile(r'^-------{}([$#+])$'.format(re.escape(transaction_id)))
             else:
-                self.msrp_transport.logger.received_illegal_data(line + self.delimiter.decode('utf-8'), self.msrp_transport)
-
-    def lineLengthExceeded(self, line):
-        self._reset()
+                self.msrp_transport.logger.received_illegal_data(line + self.delimiter, self.msrp_transport)
 
     def rawDataReceived(self, data):
-        data = self.term_buf + data.decode('utf-8')
-        match = self.term_re.match(data)
-        if match:  # we got the last data for this message
-            contents, continuation, extra = match.groups()
+        data = self.term_buf + data
+
+        terminator = '\r\n-------' + self.data.transaction_id
+        terminator = terminator.encode()
+        contents_position = data.find(terminator)
+
+        if contents_position > -1:  # we got the last data for this message
+            contents = data[:contents_position]
+            leftover = data[contents_position+len(terminator):]
+            continuation_position = leftover.find(b'\r\n')
+            continuation = leftover[:continuation_position]
+            extra = leftover[continuation_position+len(continuation)+1:]
+            
             if contents:
                 self.msrp_transport._data_write(contents, final=True)
-            self.data.chunk_footer = '\r\n-------{}{}\r\n'.format(self.data.transaction_id, continuation)
+
+            chunk_footer = '\r\n-------{}{}\r\n'.format(self.data.transaction_id, continuation.decode())
+            self.data.chunk_footer = chunk_footer.encode()
             self.msrp_transport._data_end(continuation)
             self._reset()
-            self.setLineMode(extra.encode('utf-8'))
+            self.setLineMode(extra)
         else:
             for term in self.term_substrings:
-                if data.endswith(term):
-                    self.term_buf = data[-len(term):]
-                    data = data[:-len(term)]
+                if data and data.endswith(term.encode()):
+                    self.term_buf = data[-len(term.encode()):]
+                    data = data[:-len(term.encode())]
                     break
             else:
-                self.term_buf = ''
+                self.term_buf = b''
+
             self.msrp_transport._data_write(data, final=False)
 
     def connectionLost(self, reason=connectionDone):

@@ -179,36 +179,63 @@ class MSRPTransport(GreenTransportBase):
         In case of unintelligible input, lose the connection and return None.
         When the connection is closed, raise the reason of the closure (e.g. ConnectionDone).
         """
-
         assert max_size > 0
 
         func, msrpdata = self._wait()
         if func != data_start:
             self.logger.debug('Bad data: %r %r', func, msrpdata)
             self.loseConnection()
-            raise ChunkParseError
+            raise ChunkParseError('Bad start data')
+
         data = msrpdata.data
-        func, param = self._wait()
+        func, chunk = self._wait()
+        
+        try:
+            param = chunk.decode() if isinstance(chunk, bytes) else chunk
+        except UnicodeDecodeError:
+            param = None
+
+        #data_start, data_end, data_write, data_final_write = list(range(4))
+
         while func == data_write:
-            data += param
-            if len(data) > max_size:
-                self.logger.debug('Chunk is too big (max_size=%d bytes)', max_size)
+            data += chunk
+            if len(chunk) > max_size: 
+                msg = 'Chunk is too big (max_size=%d bytes)', max_size
+                self.logger.debug(msg)
                 self.loseConnection()
-                raise ChunkParseError
-            func, param = self._wait()
-        if func == data_final_write:
-            data += param
-            func, param = self._wait()
+                raise ChunkParseError(msg)
+
+            func, chunk = self._wait()
+
+        if func == data_final_write: 
+            data += chunk
+            func, chunk = self._wait()
+            try:
+                param = chunk.decode() if isinstance(chunk, bytes) else chunk
+            except UnicodeDecodeError:
+                param = None
+
         if func != data_end:
-            self.logger.debug('Bad data: %r %s', func, repr(param)[:100])
+            bad_data = repr(param)[:100] if param else None
+            msg = 'Bad data: %r %s', func, bad_data
+            self.logger.debug(msg)
             self.loseConnection()
-            raise ChunkParseError
+            raise ChunkParseError(msg)
+
+        try:
+            param = chunk.decode() if isinstance(chunk, bytes) else chunk
+        except UnicodeDecodeError:
+            param = None
+        
         if param not in "$+#":
-            self.logger.debug('Bad data: %r %s', func, repr(param)[:100])
+            bad_data = repr(param)[:100] if param else None
+            self.logger.debug(bad_data)
             self.loseConnection()
-            raise ChunkParseError
+            raise ChunkParseError(bad_data)
+
         msrpdata.data = data
         msrpdata.contflag = param
+
         self.logger.received_chunk(msrpdata, transport=self)
         return msrpdata
 
@@ -304,7 +331,8 @@ class MSRPTransport(GreenTransportBase):
                 return MSRPNoSuchSessionError('Invalid From-Path')
 
     def connection_lost(self, reason):
-        message = 'Closed connection to {0.host}:{0.port}'.format(self.getPeer())
+        #message = 'Closed connection to {0.host}:{0.port}'.format(self.transport.getPeer())
+        message = 'Closed connection'
         if not isinstance(reason.value, ConnectionDone):
             message += ' ({})'.format(reason.getErrorMessage())
         self.logger.info(message)

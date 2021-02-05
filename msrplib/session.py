@@ -55,7 +55,7 @@ def contains_mime_type(mimetypelist, mimetype):
 class OutgoingChunk(object):
     __slots__ = ('chunk', 'response_callback')
 
-    def __init__(self,  chunk, response_callback=None):
+    def __init__(self,  chunk, response_callback=None): 
         self.chunk = chunk
         self.response_callback = response_callback
 
