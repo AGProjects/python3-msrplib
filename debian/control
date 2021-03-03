@@ -1,4 +1,4 @@
-Source: python-msrplib
+Source: python3-msrplib
 Section: python
 Priority: optional
 Maintainer: Adrian Georgescu <ag@ag-projects.com>

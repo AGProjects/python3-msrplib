@@ -1,4 +1,4 @@
-python-msrplib (0.21.0) unstable; urgency=medium
+python3-msrplib (0.21.0) unstable; urgency=medium
 
   * Migrate to version 3
 
