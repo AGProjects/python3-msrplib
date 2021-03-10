@@ -1,8 +1,9 @@
-# Copyright (C) 2008-2012 AG Projects. See LICENSE for details 
+# Copyright (C) 2008-2021 AG Projects. See LICENSE for details
 
+
+from base64 import b64encode, b64decode
 from hashlib import md5
 from time import time
-from base64 import b64encode, b64decode
 import random
 
 def get_random_data(length):
