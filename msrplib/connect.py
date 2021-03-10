@@ -147,6 +147,9 @@ class MSRPSRVConnector(SRVConnector):
 
 class ConnectBase(object):
     SRVConnectorClass = MSRPSRVConnector
+    remote_uri = None
+    remote_endpoint = None
+    relay = None
 
     def __init__(self, logger=Null, use_sessmatch=False):
         self.logger = logger
@@ -155,6 +158,7 @@ class ConnectBase(object):
 
     def _connect(self, local_uri, remote_uri):
         self.logger.info('Connecting to %s', remote_uri)
+        self.remote_uri = remote_uri
         creator = GreenClientCreator(gtransport_class=MSRPTransport, local_uri=local_uri, logger=self.logger, use_sessmatch=self.use_sessmatch)
         if remote_uri.host:
             if remote_uri.use_tls:
@@ -176,6 +180,7 @@ class ConnectBase(object):
                                       ConnectorClass=self.SRVConnectorClass)
         remote_address = msrp.getPeer()
         self.logger.info('Connected to %s:%s', remote_address.host, remote_address.port)
+        self.remote_endpoint = "%s:%s:%s" % ('tls' if remote_uri.use_tls else 'tcp', remote_address.host, remote_address.port)
         return msrp
 
     def _listen(self, local_uri, factory):
@@ -214,6 +219,7 @@ class DirectConnector(ConnectBase):
     def complete(self, full_remote_path):
         with MSRPConnectTimeout.timeout():
             msrp = self._connect(self.local_uri, full_remote_path[0])
+            self.remote_uri = full_remote_path[0]
             # can't do the following, because local_uri was already used in the INVITE
             #msrp.local_uri.port = msrp.getHost().port
         try:
@@ -262,11 +268,13 @@ class DirectAcceptor(ConnectBase):
                 msrp = self.transport_event.wait()
                 remote_address = msrp.getPeer()
                 self.logger.info('Incoming %s connection from %s:%s', self.local_uri.scheme.upper(), remote_address.host, remote_address.port)
+                self.remote_endpoint = "%s:$s:%s" % (self.local_uri.scheme.upper(), remote_address.host, remote_address.port)
         finally:
             self.cleanup()
         try:
             with MSRPBindSessionTimeout.timeout():
                 msrp.accept_binding(full_remote_path)
+                self.remote_uri = full_remote_path[0]
         except:
             msrp.loseConnection(wait=False)
             raise
@@ -299,6 +307,7 @@ class RelayConnection(ConnectBase):
         ConnectBase.__init__(self, logger, use_sessmatch)
         self.mode = mode
         self.relay = relay
+        self.remote_uri = relay
         self.msrp = None
 
     def __repr__(self):
@@ -329,6 +338,7 @@ class RelayConnection(ConnectBase):
                 raise MSRPRelayAuthError(comment=response.comment, code=response.code)
             msrp.set_local_path(list(response.headers["Use-Path"].decoded))
             self.logger.info('Reserved session at relay %s:%s', remote_address.host, remote_address.port)
+            self.remote_endpoint = "%s:%s:%s" % (self.local_uri.scheme, remote_address.host, remote_address.port)
         except:
             self.logger.info('Could not reserve session at relay %s:%s', remote_address.host, remote_address.port)
             msrp.loseConnection(wait=False)
