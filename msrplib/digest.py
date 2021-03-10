@@ -69,7 +69,7 @@ class AuthChallenger(object):
         www_authenticate["realm"] = realm
         www_authenticate["qop"] = "auth"
         nonce = get_random_data(16) + "%.3f:%s" % (time(), peer_ip)
-        www_authenticate["nonce"] = b64encode(nonce)
+        www_authenticate["nonce"] = b64encode(nonce.encode()).decode()
         opaque = md5((nonce + self.key).encode())
         www_authenticate["opaque"] = opaque.hexdigest()
         return www_authenticate
@@ -91,14 +91,14 @@ class AuthChallenger(object):
         if response != expected_response:
             raise LoginFailed("Incorrect password")
         try:
-            nonce_dec = b64decode(nonce)
+            nonce_dec = b64decode(nonce.encode()).decode()
             issued, nonce_ip = nonce_dec[16:].split(":", 1)
             issued = float(issued)
         except:
             raise LoginFailed("Could not decode nonce")
         if nonce_ip != peer_ip:
             raise LoginFailed("This challenge was not issued to you")
-        expected_opaque = md5(nonce_dec + self.key).hexdigest()
+        expected_opaque = md5((nonce_dec + self.key).encode()).hexdigest()
         if opaque != expected_opaque:
             raise LoginFailed("This nonce/opaque combination was not issued by me")
         if issued + self.expire_time < time():
