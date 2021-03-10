@@ -53,6 +53,7 @@ from eventlib import coros
 from eventlib.api import timeout, sleep
 from eventlib.green.socket import gethostbyname
 from gnutls.interfaces.twisted import TLSContext
+from gnutls.errors import CertificateError
 
 from msrplib import protocol, MSRPError
 from msrplib.transport import MSRPTransport, MSRPTransactionError, MSRPBadRequest, MSRPNoSuchSessionError
@@ -265,7 +266,11 @@ class DirectAcceptor(ConnectBase):
         """
         try:
             with MSRPIncomingConnectTimeout.timeout():
-                msrp = self.transport_event.wait()
+                try: 
+                    msrp = self.transport_event.wait()
+                except CertificateError as e:
+                    raise
+                    
                 remote_address = msrp.getPeer()
                 self.logger.info('Incoming %s connection from %s:%s', self.local_uri.scheme.upper(), remote_address.host, remote_address.port)
                 self.remote_endpoint = "%s:$s:%s" % (self.local_uri.scheme.upper(), remote_address.host, remote_address.port)
