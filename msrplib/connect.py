@@ -273,7 +273,7 @@ class DirectAcceptor(ConnectBase):
                     
                 remote_address = msrp.getPeer()
                 self.logger.info('Incoming %s connection from %s:%s', self.local_uri.scheme.upper(), remote_address.host, remote_address.port)
-                self.remote_endpoint = "%s:$s:%s" % (self.local_uri.scheme.upper(), remote_address.host, remote_address.port)
+                self.remote_endpoint = "%s:%s:%s" % (self.local_uri.scheme.upper(), remote_address.host, remote_address.port)
         finally:
             self.cleanup()
         try:
