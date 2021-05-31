@@ -46,15 +46,15 @@ class SimpleHeaderType(object):
 
 
 class UTF8HeaderType(object):
-    data_type = str
+    data_type = object
 
     @staticmethod
     def decode(encoded):
-        return encoded.decode('utf-8')
+        return encoded
 
     @staticmethod
     def encode(decoded):
-        return decoded.encode('utf-8')
+        return decoded
 
 
 class URIHeaderType(object):
