@@ -1,3 +1,13 @@
+python3-msrplib (0.21.1) unstable; urgency=medium
+
+  * Fixed decoding NICKNAME header
+  * Fixed incoming connect bug
+  * Fixed server auth
+  * Capture Certificate exception
+  * Added remote_uri and remote_endpoint attributes
+
+ -- Adrian Georgescu <ag@ag-projects.com>  Tue, 01 Jun 2021 19:37:28 +0200
+
 python3-msrplib (0.21.0) unstable; urgency=medium
 
   * Migrate to version 3
