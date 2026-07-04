@@ -347,7 +347,7 @@ class RelayConnection(ConnectBase):
         try:
             msrp = self._connect(self.local_uri, self.relay)
         except Exception:
-            self.logger.info('Could not connect  to relay %s', self.relay)
+            self.logger.info('Could not connect to relay %s', self.relay)
             raise
         local_address = msrp.getHost()
         remote_address = msrp.getPeer()
