@@ -252,7 +252,32 @@ class DirectAcceptor(ConnectBase):
         local_uri = local_uri or protocol.URI(port=0)
         self.transport_event = coros.event()
         local_uri.host = gethostbyname(local_uri.host)
-        factory = SpawnFactory(self.transport_event, MSRPTransport, local_uri, logger=self.logger, use_sessmatch=self.use_sessmatch)
+
+        # The transport event is ONE-SHOT, but the listening port keeps
+        # accepting for as long as it is open: a peer that reconnects
+        # (e.g. after a stalled transfer or a timeout on its side), a
+        # duplicated dial or a port scanner delivers a SECOND connection
+        # whose greenlet then calls transport_event.send() again and
+        # dies with "AssertionError: Trying to re-send() an
+        # already-triggered event" (unhandled error in the reactor).
+        # Route incoming transports through a closure that only
+        # forwards the FIRST one and politely drops the rest. The
+        # event reference is captured through `self` so a late
+        # connection arriving after cleanup() (transport_event = None)
+        # is also just dropped instead of crashing.
+        def handle_incoming(msrp):
+            event = self.transport_event
+            if event is not None and not event.ready():
+                event.send(msrp)
+            else:
+                try:
+                    peer = msrp.getPeer()
+                    self.logger.info('Refusing extra incoming MSRP connection from %s:%s (session already accepted)', peer.host, peer.port)
+                except Exception:
+                    pass
+                msrp.loseConnection(wait=False)
+
+        factory = SpawnFactory(handle_incoming, MSRPTransport, local_uri, logger=self.logger, use_sessmatch=self.use_sessmatch)
         self.listening_port = self._listen(local_uri, factory)
         self.local_uri = local_uri
         return [local_uri]
