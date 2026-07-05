@@ -187,9 +187,11 @@ class MSRPTransport(GreenTransportBase):
             self.loseConnection()
             raise ChunkParseError('Bad start data')
 
-        data = msrpdata.data
+        # normalize to bytes: MSRPData.data defaults to a string, while the
+        # data fragments received from the network are bytes
+        data = msrpdata.data.encode() if isinstance(msrpdata.data, str) else msrpdata.data
         func, chunk = self._wait()
-        
+
         try:
             param = chunk.decode() if isinstance(chunk, bytes) else chunk
         except UnicodeDecodeError:
@@ -198,8 +200,8 @@ class MSRPTransport(GreenTransportBase):
         #data_start, data_end, data_write, data_final_write = list(range(4))
 
         while func == data_write:
-            data += chunk
-            if len(chunk) > max_size: 
+            data += chunk.encode() if isinstance(chunk, str) else chunk
+            if len(chunk) > max_size:
                 msg = 'Chunk is too big (max_size=%d bytes)', max_size
                 self.logger.debug(msg)
                 self.loseConnection()
@@ -207,8 +209,8 @@ class MSRPTransport(GreenTransportBase):
 
             func, chunk = self._wait()
 
-        if func == data_final_write: 
-            data += chunk
+        if func == data_final_write:
+            data += chunk.encode() if isinstance(chunk, str) else chunk
             func, chunk = self._wait()
             try:
                 param = chunk.decode() if isinstance(chunk, bytes) else chunk
