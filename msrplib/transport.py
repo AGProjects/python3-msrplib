@@ -286,26 +286,40 @@ class MSRPTransport(GreenTransportBase):
     def accept_binding(self, full_remote_path):
         self._set_full_remote_path(full_remote_path)
         chunk = self.read_chunk()
-        error = self.check_incoming_SEND_chunk(chunk)
+        error = self.check_incoming_chunk(chunk)
         if error is None:
             code, comment = 200, 'OK'
         else:
             code, comment = error.code, error.comment
-        self.write_response(chunk, code, comment)
-        if 'Content-Type' in chunk.headers or chunk.size > 0:
-            # deliver chunk to read_chunk
+        if chunk.method == 'SEND':
+            self.write_response(chunk, code, comment)
+            if 'Content-Type' in chunk.headers or chunk.size > 0:
+                # deliver chunk to read_chunk
+                data = chunk.data
+                chunk.data = ''
+                self._data_start(chunk)
+                self._data_write(data, final=True)
+                self._data_end(chunk.contflag)
+        elif error is not None:
+            self.write_response(chunk, code, comment)
+        else:
+            # When an intermediary (e.g. an MSRP relay) terminates the
+            # binding SEND chunk hop-by-hop, the first end-to-end chunk on
+            # this connection can use any method (e.g. NICKNAME). Bind the
+            # session with it and requeue it, so it is processed by the
+            # session layer after binding completes; the response is
+            # generated there, as it would be on a direct connection.
             data = chunk.data
             chunk.data = ''
             self._data_start(chunk)
             self._data_write(data, final=True)
             self._data_end(chunk.contflag)
 
-    def check_incoming_SEND_chunk(self, chunk):
-        """Check the 'To-Path' and 'From-Path' of the incoming SEND chunk.
-        Return None is the paths are valid for this connection.
-        If an error is detected and MSRPError is created and returned.
+    def check_incoming_chunk(self, chunk):
+        """Check the 'To-Path' and 'From-Path' of an incoming chunk.
+        Return None if the paths are valid for this connection.
+        If an error is detected an MSRPError is created and returned.
         """
-        assert chunk.method == 'SEND', repr(chunk)
         if chunk.to_path is None:
             return MSRPBadRequest('To-Path header missing')
         if chunk.from_path is None:
@@ -329,6 +343,12 @@ class MSRPTransport(GreenTransportBase):
             if from_path != expected_from:
                 log.error('From-Path: expected %r, got %r' % (expected_from, from_path))
                 return MSRPNoSuchSessionError('Invalid From-Path')
+
+    def check_incoming_SEND_chunk(self, chunk):
+        """Check the 'To-Path' and 'From-Path' of the incoming SEND chunk.
+        Kept for backwards compatibility, use check_incoming_chunk instead."""
+        assert chunk.method == 'SEND', repr(chunk)
+        return self.check_incoming_chunk(chunk)
 
     def connection_lost(self, reason):
         #message = 'Closed connection to {0.host}:{0.port}'.format(self.transport.getPeer())
