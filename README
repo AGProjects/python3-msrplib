@@ -6,12 +6,13 @@ This library implements Message Session Relay Protocol (MSRP). MSRP is
 defined in RFC 4975.  The relay extension that can be used for NAT traversal
 purposes is defined in RFC 4976.
 
-Copyright (c) 2008-2012 AG Projects
-http://ag-projects.com
+Copyright (c) 2008-2026 AG Projects
+https://ag-projects.com
 
 Authors: Denis Bilenko, Ruud Klaver, Saul Ibarra
 
-Home page: http://projects.ag-projects.com/projects/msrp/wiki
+Home page: https://github.com/AGProjects/python3-msrplib
+
 
 
 Description
@@ -43,7 +44,7 @@ Debian package installation
 
 Add AG Projects reporistory as describe at:
 
-http://ag-projects.com/projects-products-96/683-software-repositories
+https://packages.ag-projects.com
 
 After that, run:
 
