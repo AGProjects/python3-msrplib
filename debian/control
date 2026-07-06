@@ -9,7 +9,7 @@ Package: python3-msrplib
 Architecture: all
 Depends: ${python3:Depends}, ${misc:Depends},
          python3-application,
-         python3-gnutls,
+         python3-gnutls (>= 3.1.13),
          python3-eventlib,
          python3-twisted,
          python3-zope.interface
