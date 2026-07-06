@@ -1,3 +1,11 @@
+python3-msrplib (0.21.2) unstable; urgency=medium
+
+  * Fixed data type mismatch when reading chunk data
+  * Accept any method as the first chunk when binding an incoming connection
+  * Capture handle_incoming exception
+
+ -- Adrian Georgescu <support@ag-projects.com>  Mon, 06 Jul 2026 11:01:25 +0200
+
 python3-msrplib (0.21.1) unstable; urgency=medium
 
   * Fixed decoding NICKNAME header
