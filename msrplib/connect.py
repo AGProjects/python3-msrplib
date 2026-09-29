@@ -134,6 +134,7 @@ class MSRPAuthTimeout(MSRPTransactionError, TimeoutMixin):
 
 
 class MSRPSRVConnector(SRVConnector):
+    server_picked = None  # optional callback, called with (host, port) for every server tried
 
     def pickServer(self):
         assert self.servers is not None
@@ -141,15 +142,21 @@ class MSRPSRVConnector(SRVConnector):
 
         if not self.servers and not self.orderedServers:
             # no SRV record, fall back..
-            return self.domain, 2855
-
-        return SRVConnector.pickServer(self)
+            host, port = self.domain, 2855
+        else:
+            host, port = SRVConnector.pickServer(self)
+        if isinstance(host, bytes):
+            host = host.decode()
+        if self.server_picked is not None:
+            self.server_picked(host, port)
+        return host, port
 
 
 class ConnectBase(object):
     SRVConnectorClass = MSRPSRVConnector
     remote_uri = None
     remote_endpoint = None
+    remote_server = None  # (host, port) selected through DNS SRV for the last connection attempt
     relay = None
 
     def __init__(self, logger=Null, use_sessmatch=False):
@@ -157,9 +164,19 @@ class ConnectBase(object):
         self.use_sessmatch = use_sessmatch
         self.local_uri = None
 
+    def _server_picked(self, host, port):
+        self.remote_server = (host, port)
+        self.logger.info('Trying %s:%s for %s', host, port, self.remote_uri)
+
+    def _make_srv_connector(self, *args, **kw):
+        connector = self.SRVConnectorClass(*args, **kw)
+        connector.server_picked = self._server_picked
+        return connector
+
     def _connect(self, local_uri, remote_uri):
         self.logger.info('Connecting to %s', remote_uri)
         self.remote_uri = remote_uri
+        self.remote_server = None
         creator = GreenClientCreator(gtransport_class=MSRPTransport, local_uri=local_uri, logger=self.logger, use_sessmatch=self.use_sessmatch)
         if remote_uri.host:
             if remote_uri.use_tls:
@@ -178,7 +195,7 @@ class ConnectBase(object):
             msrp = creator.connectSRV(remote_uri.scheme, remote_uri.domain,
                                       connectFuncName=connectFuncName,
                                       connectFuncArgs=connectFuncArgs,
-                                      ConnectorClass=self.SRVConnectorClass)
+                                      ConnectorClass=self._make_srv_connector)
         remote_address = msrp.getPeer()
         self.logger.info('Connected to %s:%s', remote_address.host, remote_address.port)
         self.remote_endpoint = "%s:%s:%s" % ('tls' if remote_uri.use_tls else 'tcp', remote_address.host, remote_address.port)
